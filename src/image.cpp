@@ -21,8 +21,8 @@ namespace agl {
 Image::Image() {  }
 
 Image::Image(int width, int height): _width(width), _height(height) {
-  _pixels = (struct Pixel *) malloc(sizeof(struct Pixel *) * width * height);
-  _need_to_free_malloc = true;
+  _pixels = new struct Pixel[width * height];
+  _need_to_free = true;
 }
 
 Image::Image(const Image& orig) {
@@ -44,12 +44,9 @@ Image& Image::operator=(const Image& orig) {
 }
 
 Image::~Image() {
-  if (_need_to_free_stbi) {
-    // was allocated by stbi_load, need to stbi free
-    stbi_image_free(_pixels);
-  } else if (_need_to_free_malloc) {
-    // was malloc-ed, need to free
-    free(_pixels);
+  if (_need_to_free) {
+    // was allocated, need to stbi free
+    delete[] _pixels;
   }
 }
 
@@ -79,9 +76,7 @@ bool Image::load(const std::string& filename, bool flip) {
   // also must convert filename from string to char *
   _pixels = (struct Pixel *) stbi_load(filename.c_str(), &_width, &_height,
       &_components, 3);
-  _need_to_free_stbi = true;
-  // reset to false for future calls
-  stbi_set_flip_vertically_on_load(false);
+  _need_to_free = true;
   if (_pixels == NULL) {
     // allocation failure
     return false;
@@ -95,9 +90,7 @@ bool Image::save(const std::string& filename, bool flip) const {
   // if flip = true, will set stbi's flip variable to true also
   stbi_flip_vertically_on_write(flip);
   int result = stbi_write_png(filename.c_str(), _width, _height, 3,
-      (void *) _pixels, sizeof(struct Pixel) * _width);
-  // reset to false for future calls
-  stbi_flip_vertically_on_write(flip);
+      _pixels, sizeof(struct Pixel) * _width);
   if (result == 0) {
     // failed to write file
     return false;
@@ -191,7 +184,7 @@ Image Image::gammaCorrect(float gamma) const {
   Image result(_width, _height);
   for (int i = 0; i < _height; i++) {
     for (int j = 0; j < _width; j++) {
-      struct Pixel pixel = get(i,j);  // copy original pixel
+      struct Pixel pixel = get(i, j);  // copy original pixel
       pixel.r = round(pow((pixel.r / 255.0f), 1.0f / gamma) * 255.0f);
       pixel.g = round(pow((pixel.g / 255.0f), 1.0f / gamma) * 255.0f);
       pixel.b = round(pow((pixel.b / 255.0f), 1.0f / gamma) * 255.0f);

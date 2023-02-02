@@ -193,8 +193,7 @@ class Image {
   int _components = 0; // number of components in original image file
   // internally use struct Pixel *, externally accept/return as unsigned char *
   struct Pixel * _pixels;  // internal representation of pixel data
-  bool _need_to_free_stbi = false;  // if true, destructor must stbi free
-  bool _need_to_free_malloc = false;  // if true, destructor must free
+  bool _need_to_free = false;  // if true, destructor must free
 };
 }  // namespace agl
 #endif  // AGL_IMAGE_H_
