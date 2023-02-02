@@ -17,37 +17,49 @@
 
 namespace agl {
 
+// helper function to free pixels
+void Image::resetPixels() {
+  if (_pixels != NULL) {
+    _width = 0;
+    _height = 0;
+    _components = 0;
+    delete[] _pixels;
+    _pixels = NULL;
+  }
+}
 
 Image::Image() {  }
 
 Image::Image(int width, int height): _width(width), _height(height) {
+  resetPixels();
   _pixels = new struct Pixel[width * height];
-  _need_to_free = true;
 }
 
 Image::Image(const Image& orig) {
+  resetPixels();
   _width = orig._width;
   _height = orig._height;
   _components = orig._components;
-  _pixels = orig._pixels;
+  _pixels = new struct Pixel[_width * _height];
+  memcpy(_pixels, orig._pixels, sizeof(struct Pixel) * _width * _height);
 }
 
 Image& Image::operator=(const Image& orig) {
   if (&orig == this) {
     return *this;
   }
+  resetPixels();
   _width = orig._width;
   _height = orig._height;
   _components = orig._components;
-  _pixels = orig._pixels;
+  _pixels = new struct Pixel[_width * _height];
+  memcpy(_pixels, orig._pixels, sizeof(struct Pixel) * _width * _height);
   return *this;
 }
 
 Image::~Image() {
-  if (_need_to_free) {
-    // was allocated, need to stbi free
-    delete[] _pixels;
-  }
+  // free pixel memory
+  resetPixels();
 }
 
 int Image::width() const {
@@ -63,20 +75,23 @@ char* Image::data() const {
 }
 
 void Image::set(int width, int height, unsigned char* data) {
+  resetPixels();
   _width = width;
   _height = height;
-  _pixels = (struct Pixel *) data;
+  _pixels = new struct Pixel[_width * _height];
+  memcpy(_pixels, data, sizeof(struct Pixel) * _width * _height);
 }
 
 bool Image::load(const std::string& filename, bool flip) {
   // if flip = true, will set stbi's flip variable to true also
   // auto conversion to bool (false = 0, true = 1)
   stbi_set_flip_vertically_on_load(flip);
+  // free pixel memory first
+  resetPixels();
   // stbi_load returns unsigned char *, so must cast to struct Pixel *
   // also must convert filename from string to char *
   _pixels = (struct Pixel *) stbi_load(filename.c_str(), &_width, &_height,
       &_components, 3);
-  _need_to_free = true;
   if (_pixels == NULL) {
     // allocation failure
     return false;
@@ -173,8 +188,10 @@ Image Image::subimage(int startx, int starty, int w, int h) const {
 
 void Image::replace(const Image& image, int startx, int starty) {
   // only replace as many pixels as will fit onto original image
-  for (int i = 0; i < _height - starty; i++) {
-    for (int j = 0; j < _width - startx; j++) {
+  int rows = std::min(_height - starty, image.height()); // num rows to replace
+  int cols = std::min(_width - startx, image.width());  // num cols to replace
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < cols; j++) {
       set(starty + i, startx + j, image.get(i, j));
     }
   }

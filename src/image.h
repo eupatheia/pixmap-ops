@@ -192,8 +192,10 @@ class Image {
   int _height = 0;  // number of rows (in pixels)
   int _components = 0; // number of components in original image file
   // internally use struct Pixel *, externally accept/return as unsigned char *
-  struct Pixel * _pixels;  // internal representation of pixel data
-  bool _need_to_free = false;  // if true, destructor must free
+  struct Pixel * _pixels = NULL;  // internal representation of pixel data
+
+  // free memory pointed to by _pixels
+  void resetPixels();
 };
 }  // namespace agl
 #endif  // AGL_IMAGE_H_
