@@ -23,7 +23,12 @@ void Image::resetPixels() {
     _width = 0;
     _height = 0;
     _components = 0;
-    delete[] _pixels;
+    if (_use_stbi_free) {
+      stbi_image_free(_pixels);
+      _use_stbi_free = false;
+    } else {
+      delete[] _pixels;
+    }
     _pixels = NULL;
   }
 }
@@ -92,6 +97,7 @@ bool Image::load(const std::string& filename, bool flip) {
   // also must convert filename from string to char *
   _pixels = (struct Pixel *) stbi_load(filename.c_str(), &_width, &_height,
       &_components, 3);
+  _use_stbi_free = true;
   if (_pixels == NULL) {
     // allocation failure
     return false;

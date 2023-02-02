@@ -193,6 +193,7 @@ class Image {
   int _components = 0; // number of components in original image file
   // internally use struct Pixel *, externally accept/return as unsigned char *
   struct Pixel * _pixels = NULL;  // internal representation of pixel data
+  bool _use_stbi_free = false;  // use stbi_image_free instead of delete
 
   // free memory pointed to by _pixels
   void resetPixels();
