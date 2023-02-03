@@ -1,5 +1,10 @@
 // Copyright 2021, Aline Normoyle, alinen
 
+/* image.h
+ * header file for image.cpp
+ * Edited February 2, 2023 by JL
+ */
+
 #ifndef AGL_IMAGE_H_
 #define AGL_IMAGE_H_
 

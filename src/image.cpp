@@ -1,7 +1,12 @@
 // Base code Copyright 2021, Aline Normoyle, alinen
 
 /* image.cpp
- *
+ * Implementation of an Image class that uses the STB library to load an image
+ * into a pixel representation and provides functions to transform the image
+ * (e.g. color changes, resizing, cropping, blending, etc.); also allows
+ * user to save/write the result to a .png file
+ * JL
+ * February 2, 2023
  *
  * STB documentation can be found at
  * https://github.com/nothings/stb/
@@ -24,15 +29,18 @@ void Image::resetPixels() {
     _height = 0;
     _components = 0;
     if (_use_stbi_free) {
+      // allocated with stbi_load, so must free with stbi_image_free
       stbi_image_free(_pixels);
       _use_stbi_free = false;
     } else {
+      // regular array deallocation
       delete[] _pixels;
     }
     _pixels = NULL;
   }
 }
 
+// if no width/height provided, no need set instance variables
 Image::Image() {  }
 
 Image::Image(int width, int height): _width(width), _height(height) {
@@ -63,7 +71,7 @@ Image& Image::operator=(const Image& orig) {
 }
 
 Image::~Image() {
-  // free pixel memory
+  // must free pixel memory
   resetPixels();
 }
 
@@ -95,6 +103,7 @@ bool Image::load(const std::string& filename, bool flip) {
   resetPixels();
   // stbi_load returns unsigned char *, so must cast to struct Pixel *
   // also must convert filename from string to char *
+  // requesting only 3 channels (RGB)
   _pixels = (struct Pixel *) stbi_load(filename.c_str(), &_width, &_height,
       &_components, 3);
   _use_stbi_free = true;
@@ -145,6 +154,8 @@ Image Image::resize(int w, int h) const {
     for (int j = 0; j < w; j++) {
       float col_ratio = (float) j / (w - 1);
       int orig_col = floor(col_ratio * (_width - 1));
+      // set new pixel to old pixel at the same relative position
+      //   in the old image, proportionally
       result.set(i, j, get(orig_row, orig_col));
     }
   }
@@ -155,6 +166,7 @@ Image Image::flipHorizontal() const {
   Image result(_width, _height);
   for (int i = 0; i < _height; i++) {
     for (int j = 0; j < _width; j++) {
+      // set new pixel to old pixel in mirrored half, folded horizontally
       result.set(i, j, get(_height - 1 - i, j));
     }
   }
@@ -165,6 +177,7 @@ Image Image::flipVertical() const {
   Image result(_width, _height);
   for (int i = 0; i < _height; i++) {
     for (int j = 0; j < _width; j++) {
+      // set new pixel to old pixel in mirrored half, folded vertically
       result.set(i, j, get(i, _width - 1 - j));
     }
   }
@@ -208,6 +221,7 @@ Image Image::gammaCorrect(float gamma) const {
   for (int i = 0; i < _height; i++) {
     for (int j = 0; j < _width; j++) {
       struct Pixel pixel = get(i, j);  // copy original pixel
+      // RGB values must be converted to float in range [0, 1.0] first
       pixel.r = round(pow((pixel.r / 255.0f), 1.0f / gamma) * 255.0f);
       pixel.g = round(pow((pixel.g / 255.0f), 1.0f / gamma) * 255.0f);
       pixel.b = round(pow((pixel.b / 255.0f), 1.0f / gamma) * 255.0f);
@@ -221,11 +235,14 @@ Image Image::alphaBlend(const Image& other, float alpha) const {
   Image result(_width, _height);
   for (int i = 0; i < _height; i++) {
     for (int j = 0; j < _width; j++) {
-      struct Pixel under = get(i,j);  // background pixel from this image
-      struct Pixel over = other.get(i, j);  // foreground pixel from other image
-      unsigned char new_red = round((over.r * alpha) + (under.r * (1 - alpha)));
-      unsigned char new_green = round((over.g * alpha) + (under.g * (1 - alpha)));
-      unsigned char new_blue = round((over.b * alpha) + (under.b * (1 - alpha)));
+      struct Pixel under = get(i,j);  // back pixel from this image
+      struct Pixel over = other.get(i, j);  // fore pixel from other image
+      unsigned char new_red = round((over.r * alpha) +
+                                    (under.r * (1 - alpha)));
+      unsigned char new_green = round((over.g * alpha) +
+                                      (under.g * (1 - alpha)));
+      unsigned char new_blue = round((over.b * alpha) +
+                                     (under.b * (1 - alpha)));
       struct Pixel corrected = {new_red, new_green, new_blue};
       result.set(i, j, corrected);
     }
