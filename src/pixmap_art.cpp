@@ -44,6 +44,9 @@ int main(int argc, char** argv) {
   waveAndTree = wave.darkest(trees);
   waveAndTree.save("wave-trees-min.png");
 
+  Image flip = earth.flipVertical();
+  flip.save("earth-flip-vertical.png");
+
   Image rotated = budapest1.rotate90();
   rotated.save("budapest1-rotated.png");
 
@@ -62,17 +65,28 @@ int main(int argc, char** argv) {
   Image sobel = budapest1.sobelEdge();
   sobel.save("budapest1-sobel.png");
 
+  invert = budapest1.grayscale().sobelEdge().invert();
+  invert.save("budapest1-gray-sobel-invert.png");
+
   sobel = temple.sobelEdge();
   sobel.save("temple-sobel.png");
 
   sobel = budapest2.grayscale().invert().sobelEdge();
   sobel.save("budapest2-gray-invert-sobel.png");
 
+  Image red = budapest1.subimage(166, 250, 166, 250).extractChannel(1);
+  Image green = budapest1.subimage(332, 250, 166, 250).extractChannel(2);
+  Image blue = budapest1.subimage(166, 500, 166, 250).extractChannel(3);
+  Image orig = budapest1.subimage(332, 500, 166, 250);
+  Image quad = budapest1.grayscale();
+  quad.replace(red, 166, 250);
+  quad.replace(green, 332, 250);
+  quad.replace(blue, 166, 500);
+  quad.replace(orig, 332, 500);
+  quad.save("budapest1-quad.png");
+
   Image bitmap = budapest2.bitMap();
   bitmap.save("budapest2-bitmap.png");
-
-  bitmap = budapest2.resize(300, 200).bitMap();
-  bitmap.save("budapest2-300-200-bitmap.png");
 
   Image templeSubimage = temple.subimage(200, 125, 400, 250);
   Image treesSubimage = trees.subimage(300, 150, 400, 250);
