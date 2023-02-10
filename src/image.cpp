@@ -590,17 +590,18 @@ Image Image::bitMap() const {
       if (i == 0 || i == _height - 1 || j == 0 || j == _width - 1) {
         // no change in edge pixels
         result.set(i, j, get(i, j));
-      } 
-      int conv[3] = {0, 0, 0};  // sum of convolved area, component-wise
-      struct Pixel p = get(i, j);
-      convolve(kernel, conv, i, j, MIDDLE);
-      p.r = (int) (conv[0] / 9.0);
-      p.g = (int) (conv[1] / 9.0);
-      p.b = (int) (conv[2] / 9.0);
-      // set 3x3 neighborhood to the avg color, like a larger "bit"
-      for (int m = -1; m <= 1; m++) {
-        for (int n = -1; n <= 1; n++)
-        result.set(i + m, j + n, p);
+      } else {
+        int conv[3] = {0, 0, 0};  // sum of convolved area, component-wise
+        struct Pixel p = get(i, j);
+        convolve(kernel, conv, i, j, MIDDLE);
+        p.r = (int) (conv[0] / 9.0);
+        p.g = (int) (conv[1] / 9.0);
+        p.b = (int) (conv[2] / 9.0);
+        // set 3x3 neighborhood to the avg color, like a larger "bit"
+        for (int m = -1; m <= 1; m++) {
+          for (int n = -1; n <= 1; n++)
+          result.set(i + m, j + n, p);
+        }
       }
     }
   }
