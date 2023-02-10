@@ -23,6 +23,9 @@ struct Pixel {
     unsigned char b;
 };
 
+// used in convolutions to specify location of pixel
+enum Position {MIDDLE, CORNER, EDGE};
+
 /**
  * @brief Implements loading, modifying, and saving RGB images
  */
@@ -119,9 +122,6 @@ class Image {
   // flip around the vertical midline
   Image flipVertical() const;
 
-  // rotate the Image 90 degrees counter-clockwise
-  Image rotate90() const;
-
   // Return a sub-Image having the given top left coordinate and (width, height)
   Image subimage(int x, int y, int w, int h) const;
 
@@ -141,21 +141,27 @@ class Image {
   // Convert the image to grayscale
   Image grayscale() const;
 
+  // rotate the Image 90 degrees counter-clockwise
+  Image rotate90() const;
+
   // Apply the following calculation to the pixels in
   // our image and the given image:
   //    result.pixel = this.pixel + other.pixel
+  // with clamp at 255
   // Assumes that the two images are the same size
   Image add(const Image& other) const;
 
   // Apply the following calculation to the pixels in
   // our image and the given image:
   //    result.pixel = this.pixel - other.pixel
+  // with clamp at 0
   // Assumes that the two images are the same size
   Image subtract(const Image& other) const;
 
   // Apply the following calculation to the pixels in
   // our image and the given image:
   //    result.pixel = this.pixel * other.pixel
+  // with clamp at 255
   // Assumes that the two images are the same size
   Image multiply(const Image& other) const;
 
@@ -180,17 +186,29 @@ class Image {
   // Assumes that the two images are the same size
   Image darkest(const Image& other) const;
 
-  // Convert the image to grayscale
+  // subtract each color channel from the max value 255.
   Image invert() const;
 
-  // return a bitmap version of this image
-  Image colorJitter(int size) const;
+  // extract one color channel:
+  // 1 = red
+  // 2 = green
+  // 3 = blue
+  Image extractChannel(int channel) const;
 
-  // return a bitmap version of this image
-  Image bitmap(int size) const;
+  // box blur image with convolution
+  Image blur() const;
 
-  // Fill this image with a color
-  void fill(const Pixel& c);
+  // convert pixel to white if at or above threshold, else convert to black
+  Image extractWhite(int threshold) const;
+
+  // add glow effect to image (extractWhite + alphaBlend)
+  Image glow(int threshold) const;
+
+  // sobel edge detection
+  Image sobelEdge() const;
+
+  // averages a 3x3 neighborhood of pixels and colors them all the same
+  Image bitMap() const;
 
  private:
   int _width = 0;  // number of columns (in pixels)
@@ -202,6 +220,16 @@ class Image {
 
   // free memory pointed to by _pixels
   void resetPixels();
+
+  // apply a 3x3 matrix to a pixel and return convolution with pixel at (i,j),
+  // with component-wise sums in the result matrix
+  int* convolve(const int * matrix, int * result, int i, int j,
+      Position position) const;
+
+  // helper to alpha blend one pixel with a specific alpha using:
+  //   this.pixels = this.pixels * (1-alpha) + other.pixel * alpha
+  Pixel alphaBlendPixel(const struct Pixel& orig, const struct Pixel& other,
+      float alpha) const;
 };
 }  // namespace agl
 #endif  // AGL_IMAGE_H_

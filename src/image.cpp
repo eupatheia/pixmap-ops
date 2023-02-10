@@ -184,17 +184,6 @@ Image Image::flipVertical() const {
   return result;
 }
 
-Image Image::rotate90() const {
-  Image result(_height, _width);
-  // width and height are switched (b/c image is transposed)
-  for (int i = 0; i < _width; i++) {
-    for (int j = 0; j < _height; j++) {
-      result.set(i, j, get(j, _width - 1 - i));
-    }
-  }
-  return result;
-}
-
 Image Image::subimage(int startx, int starty, int w, int h) const {
   Image sub(w, h);
   for (int i = 0; i < h; i++) {
@@ -231,20 +220,21 @@ Image Image::gammaCorrect(float gamma) const {
   return result;
 }
 
+Pixel Image::alphaBlendPixel(const struct Pixel& orig,
+    const struct Pixel& other, float alpha) const {
+  struct Pixel corrected;
+  corrected.r = round((other.r * alpha) + (orig.r * (1 - alpha)));
+  corrected.g = round((other.g * alpha) + (orig.g * (1 - alpha)));
+  corrected.b = round((other.b * alpha) + (orig.b * (1 - alpha)));
+  return corrected;
+}
+
 Image Image::alphaBlend(const Image& other, float alpha) const {
   Image result(_width, _height);
   for (int i = 0; i < _height; i++) {
     for (int j = 0; j < _width; j++) {
-      struct Pixel under = get(i,j);  // back pixel from this image
-      struct Pixel over = other.get(i, j);  // fore pixel from other image
-      unsigned char new_red = round((over.r * alpha) +
-                                    (under.r * (1 - alpha)));
-      unsigned char new_green = round((over.g * alpha) +
-                                      (under.g * (1 - alpha)));
-      unsigned char new_blue = round((over.b * alpha) +
-                                     (under.b * (1 - alpha)));
-      struct Pixel corrected = {new_red, new_green, new_blue};
-      result.set(i, j, corrected);
+      struct Pixel blend = alphaBlendPixel(get(i, j), other.get(i, j), alpha);
+      result.set(i, j, blend);
     }
   }
   return result;
@@ -264,67 +254,333 @@ Image Image::grayscale() const {
   return result;
 }
 
-Image Image::add(const Image& other) const {
-  Image result(0, 0);
+Image Image::rotate90() const {
+  Image result(_height, _width);
+  // width and height are switched (b/c image is transposed)
+  for (int i = 0; i < _width; i++) {
+    for (int j = 0; j < _height; j++) {
+      result.set(i, j, get(j, _width - 1 - i));
+    }
+  }
+  return result;
+}
 
+Image Image::add(const Image& other) const {
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p1 = get(i,j);
+      struct Pixel p2 = other.get(i,j);
+      // add colors component-wise, clamp at 255
+      struct Pixel p3 = {(unsigned char) std::min(p1.r + p2.r, 255),
+          (unsigned char) std::min(p1.g + p2.g, 255),
+          (unsigned char) std::min(p1.b + p2.b, 255)};
+      result.set(i, j, p3);
+    }
+  }
   return result;
 }
 
 Image Image::subtract(const Image& other) const {
-  Image result(0, 0);
-
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p1 = get(i,j);
+      struct Pixel p2 = other.get(i,j);
+      // subtract colors component-wise, clamp at 0
+      struct Pixel p3 = {(unsigned char) std::max(p1.r - p2.r, 0),
+          (unsigned char) std::max(p1.g - p2.g, 0),
+          (unsigned char) std::max(p1.b - p2.b, 0)};
+      result.set(i, j, p3);
+    }
+  }
   return result;
 }
 
 Image Image::multiply(const Image& other) const {
-  Image result(0, 0);
-
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p1 = get(i,j);
+      struct Pixel p2 = other.get(i,j);
+      // multiply colors component-wise, clamp at 255
+      struct Pixel p3 = {(unsigned char) std::min(p1.r * p2.r, 255),
+          (unsigned char) std::min(p1.g * p2.g, 255),
+          (unsigned char) std::min(p1.b * p2.b, 255)};
+      result.set(i, j, p3);
+    }
+  }
   return result;
 }
 
 Image Image::difference(const Image& other) const {
-  Image result(0, 0);
-
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p1 = get(i,j);
+      struct Pixel p2 = other.get(i,j);
+      // subtract colors component-wise, use absolute value
+      struct Pixel p3 = {(unsigned char) std::abs(p1.r - p2.r),
+          (unsigned char) std::abs(p1.g - p2.g),
+          (unsigned char) std::abs(p1.b - p2.b)};
+      result.set(i, j, p3);
+    }
+  }
   return result;
 }
 
 Image Image::swirl() const {
-  Image result(0, 0);
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel orig = get(i,j);
+      // rotate channels
+      struct Pixel corrected = {orig.g, orig.b, orig.r};
+      result.set(i, j, corrected);
+    }
+  }
   return result;
 }
 
 Image Image::lightest(const Image& other) const {
-  Image result(0, 0);
-
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p1 = get(i,j);
+      struct Pixel p2 = other.get(i,j);
+      // get lightest color
+      struct Pixel p3 = {(unsigned char) std::max(p1.r, p2.r),
+          (unsigned char) std::max(p1.g, p2.g),
+          (unsigned char) std::max(p1.b, p2.b)};
+      result.set(i, j, p3);
+    }
+  }
   return result;
 }
 
 Image Image::darkest(const Image& other) const {
-  Image result(0, 0);
-
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p1 = get(i,j);
+      struct Pixel p2 = other.get(i,j);
+      // get darkest color
+      struct Pixel p3 = {(unsigned char) std::min(p1.r, p2.r),
+          (unsigned char) std::min(p1.g, p2.g),
+          (unsigned char) std::min(p1.b, p2.b)};
+      result.set(i, j, p3);
+    }
+  }
   return result;
 }
 
 Image Image::invert() const {
-  Image image(0, 0);
-
-  return image;
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p = get(i,j);
+      // subtract colors from 255
+      p.r = 255 - p.r;
+      p.g = 255 - p.g;
+      p.b = 255 - p.b;
+      result.set(i, j, p);
+    }
+  }
+  return result;
 }
 
-Image Image::colorJitter(int size) const {
-  Image image(0, 0);
-
-  return image;
+Image Image::extractChannel(int channel) const {
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p = get(i,j);
+      // only keep the specified channel, others set to zero
+      if (channel == 1) {
+        p.g = 0;
+        p.b = 0;
+      } else if (channel == 2) {
+        p.r = 0;
+        p.b = 0;
+      } else if (channel == 3) {
+        p.r = 0;
+        p.g = 0;
+      } else {
+        // no change if invalid channel
+        std::cout << "Invalid channel: " << channel << std::endl;
+      }
+      result.set(i, j, p);
+    }
+  }
+  return result;
 }
 
-Image Image::bitmap(int size) const {
-  Image image(0, 0);
-
-  return image;
+int* Image::convolve(const int * matrix, int * result, int i, int j,
+    Position position) const {
+  int startRow, endRow, startCol, endCol;
+  if (position == MIDDLE) {
+    // a middle pixel, has 8 neighbors + itself
+    startRow = -1;
+    endRow = 1;
+    startCol = -1;
+    endCol = 1;
+  } else if (position == CORNER) {
+    // corner pixel, has 3 neighbors + itself
+    startRow = 0;
+    endRow = 1;
+    startCol = 0;
+    endCol = 1;
+  } else { //some type of edge pixel
+    if (i == 0) {
+      // top edge pixel, has 5 neighbors + itself
+      startRow = 0;
+      endRow = 1;
+      startCol = -1;
+      endCol = 1;
+    } else if (i == _height - 1) {
+      // bottom edge pixel, has 5 neighbors + itself
+      startRow = -1;
+      endRow = 0;
+      startCol = -1;
+      endCol = 1;
+    } else if (j == 0) {
+      // left edge pixel, has 5 neighbors + itself
+      startRow = -1;
+      endRow = 1;
+      startCol = 0;
+      endCol = 1;
+    } else { // j == _width - 1
+      // right edge pixel, has 5 neighbors + itself
+      startRow = -1;
+      endRow = 1;
+      startCol = -1;
+      endCol = 0;
+    }
+  }
+  for (int m = startRow; m <= endRow; m++) {
+    for (int n = startCol; n <= endCol; n++) {
+      struct Pixel p = get(i + m, j + n);
+      result[0] += p.r * matrix[((m + 1) * 3) + (n + 1)];
+      result[1] += p.g * matrix[((m + 1) * 3) + (n + 1)];
+      result[2] += p.b * matrix[((m + 1) * 3) + (n + 1)];
+    }
+  }
+  return result;
 }
 
-void Image::fill(const Pixel& c) {
+Image Image::blur() const {
+  Image result(_width, _height);
+  int matrix[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      int convolved[3] = {0, 0, 0};  // sum of convolved area, component-wise
+      int denom;  // denominator for averaging neighborhood
+      struct Pixel p = get(i,j);
+      if ((i > 0 && i < _height - 1) && (j > 0 && j < _width - 1)) {
+        convolve(matrix, convolved, i, j, MIDDLE);
+        denom = 9;  // middle pixels have 8 neighbors + itself
+      } else if ((i == 0 && j == 0) || (i == 0 && j == _width - 1) ||
+          (i == _height - 1 && j == 0) ||
+          (i == _height - 1 && j == _width - 1)) {
+        convolve(matrix, convolved, i, j, CORNER);
+        denom = 4;  // corner pixels have 3 neighbors + itself
+      } else {
+        convolve(matrix, convolved, i, j, EDGE);
+        denom = 6;  // edge pixels have 5 neighbors + itself
+      }
+      p.r = round((float) convolved[0] / denom);
+      p.g = round((float) convolved[1] / denom);
+      p.b = round((float) convolved[2] / denom);
+      result.set(i, j, p);
+    }
+  }
+  return result;
+}
 
+Image Image::extractWhite(int threshold) const {
+  Image result(_width, _height);
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel p = get(i,j);
+      if (p.r >= threshold && p.g >= threshold && p.b >= threshold) {
+        // meets threshold, set to white
+        p = {255, 255, 255};
+      } else {
+        // set to black
+        p = {0, 0, 0};
+      }
+      result.set(i, j, p);
+    }
+  }
+  return result;
+}
+
+Image Image::glow(int threshold) const {
+  Image result(_width, _height);
+  Image whitened = extractWhite(threshold);
+  whitened = whitened.blur();
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      struct Pixel whiteP = whitened.get(i, j);
+      float alpha = (whiteP.r + whiteP.g + whiteP.b) / (6 * 255.0f);
+      result.set(i, j, alphaBlendPixel(get(i, j), whiteP, alpha));
+    }
+  }
+  return result;
+}
+
+Image Image::sobelEdge() const {
+  Image result(_width, _height);
+  int gx[9] = {1, 0, -1, 2, 0, -2, 0, 0, -1};
+  int gy[9] = {1, 2, 1, 0, 0, 0, -1, -2, -1};
+  for (int i = 0; i < _height; i++) {
+    for (int j = 0; j < _width; j++) {
+      int gxConv[3] = {0, 0, 0};  // sum of convolved area, component-wise
+      int gyConv[3] = {0, 0, 0};  // sum of convolved area, component-wise
+      struct Pixel p = get(i, j);
+      Position position;
+      if ((i > 0 && i < _height - 1) && (j > 0 && j < _width - 1)) {
+        position = MIDDLE;
+      } else if ((i == 0 && j == 0) || (i == 0 && j == _width - 1) ||
+          (i == _height - 1 && j == 0) ||
+          (i == _height - 1 && j == _width - 1)) {
+        position = CORNER;
+      } else {
+        position = EDGE;
+      }
+      convolve(gx, gxConv, i, j, position);
+      convolve(gy, gyConv, i, j, position);
+      float distanceRed = sqrt(pow(gxConv[0], 2) + pow(gyConv[0], 2));
+      float distanceGreen = sqrt(pow(gxConv[1], 2) + pow(gyConv[1], 2));
+      float distanceBlue = sqrt(pow(gxConv[2], 2) + pow(gyConv[2], 2));
+      p.r = std::min((int) round(distanceRed), 255);
+      p.g = std::min((int) round(distanceGreen), 255);
+      p.b = std::min((int) round(distanceBlue), 255);
+      result.set(i, j, p);
+    }
+  }
+  return result;
+}
+
+Image Image::bitMap() const {
+  Image result(_width, _height);
+  int kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+  // only convolve on middle pixels to prevent edge cases
+  for (int i = 1; i < _height - 1; i += 2) {
+    for (int j = 1; j < _width - 1; j += 2) {
+      int conv[3] = {0, 0, 0};  // sum of convolved area, component-wise
+      struct Pixel p = get(i, j);
+      convolve(kernel, conv, i, j, MIDDLE);
+      p.r = conv[0] / 9;
+      p.g = conv[1] / 9;
+      p.b = conv[2] / 9;
+      // set 3x3 neighborhood to the avg color, like a larger "bit"
+      for (int m = -1; m <= 1; m++) {
+        for (int n = -1; n <= 1; n++)
+        result.set(i + m, j + n, p);
+      }
+    }
+  }
+  return result;
 }
 
 
