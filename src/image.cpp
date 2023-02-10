@@ -585,8 +585,12 @@ Image Image::bitMap() const {
   Image result(_width, _height);
   int kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
   // only convolve on middle pixels to prevent edge cases
-  for (int i = 1; i < _height - 1; i += 2) {
-    for (int j = 1; j < _width - 1; j += 2) {
+  for (int i = 0; i < _height; i += 2) {
+    for (int j = 0; j < _width; j += 2) {
+      if (i == 0 || i == _height - 1 || j == 0 || j == _width - 1) {
+        // no change in edge pixels
+        result.set(i, j, get(i, j));
+      } 
       int conv[3] = {0, 0, 0};  // sum of convolved area, component-wise
       struct Pixel p = get(i, j);
       convolve(kernel, conv, i, j, MIDDLE);
