@@ -584,24 +584,28 @@ Image Image::sobelEdge() const {
 Image Image::bitMap() const {
   Image result(_width, _height);
   int kernel[9] = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+  // copy over edge pixels
+  for (int k = 0; k < _width; k++) {
+    result.set(0, k, get(0, k));
+    result.set(_height - 1, k, get(_height - 1, k));
+  }
+  for (int k = 0; k < _height; k++) {
+    result.set(k, 0, get(k, 0));
+    result.set(k, _width - 1, get(k, _width - 1));
+  }
   // only convolve on middle pixels to prevent edge cases
-  for (int i = 0; i < _height; i += 2) {
-    for (int j = 0; j < _width; j += 2) {
-      if (i == 0 || i == _height - 1 || j == 0 || j == _width - 1) {
-        // no change in edge pixels
-        result.set(i, j, get(i, j));
-      } else {
-        int conv[3] = {0, 0, 0};  // sum of convolved area, component-wise
-        struct Pixel p = get(i, j);
-        convolve(kernel, conv, i, j, MIDDLE);
-        p.r = (int) (conv[0] / 9.0);
-        p.g = (int) (conv[1] / 9.0);
-        p.b = (int) (conv[2] / 9.0);
-        // set 3x3 neighborhood to the avg color, like a larger "bit"
-        for (int m = -1; m <= 1; m++) {
-          for (int n = -1; n <= 1; n++)
-          result.set(i + m, j + n, p);
-        }
+  for (int i = 1; i < _height - 1; i += 2) {
+    for (int j = 1; j < _width - 1; j += 2) {
+      int conv[3] = {0, 0, 0};  // sum of convolved area, component-wise
+      struct Pixel p = get(i, j);
+      convolve(kernel, conv, i, j, MIDDLE);
+      p.r = (int) (conv[0] / 9.0);
+      p.g = (int) (conv[1] / 9.0);
+      p.b = (int) (conv[2] / 9.0);
+      // set 3x3 neighborhood to the avg color, like a larger "bit"
+      for (int m = -1; m <= 1; m++) {
+        for (int n = -1; n <= 1; n++)
+        result.set(i + m, j + n, p);
       }
     }
   }
