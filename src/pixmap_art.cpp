@@ -1,3 +1,9 @@
+/* pixmap_art.cpp
+ * Tests for custom image operators from image.cpp
+ * JL
+ * February 10, 2023
+ */
+
 #include <iostream>
 #include "image.h"
 using namespace std;
