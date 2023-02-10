@@ -424,11 +424,31 @@ int* Image::convolve(const int * matrix, int * result, int i, int j,
     startCol = -1;
     endCol = 1;
   } else if (position == CORNER) {
-    // corner pixel, has 3 neighbors + itself
-    startRow = 0;
-    endRow = 1;
-    startCol = 0;
-    endCol = 1;
+    if (i == 0 && j == 0) {
+      // top left pixel, has 3 neighbors + itself
+      startRow = 0;
+      endRow = 1;
+      startCol = 0;
+      endCol = 1;
+    } else if (i == 0 && j == _width - 1) {
+      // top right pixel, has 3 neighbors + itself
+      startRow = 0;
+      endRow = 1;
+      startCol = -1;
+      endCol = 0;
+    } else if (i == _height - 1 && j == 0) {
+      // bottom left pixel, has 3 neighbors + itself
+      startRow = -1;
+      endRow = 0;
+      startCol = 0;
+      endCol = 1;
+    } else {  // i == _height - 1 && j == _width - 1
+      // bottom right pixel, has 3 neighbors + itself
+      startRow = -1;
+      endRow = 0;
+      startCol = -1;
+      endCol = 0;
+    }
   } else { //some type of edge pixel
     if (i == 0) {
       // top edge pixel, has 5 neighbors + itself
@@ -570,9 +590,9 @@ Image Image::bitMap() const {
       int conv[3] = {0, 0, 0};  // sum of convolved area, component-wise
       struct Pixel p = get(i, j);
       convolve(kernel, conv, i, j, MIDDLE);
-      p.r = conv[0] / 9;
-      p.g = conv[1] / 9;
-      p.b = conv[2] / 9;
+      p.r = (int) (conv[0] / 9.0);
+      p.g = (int) (conv[1] / 9.0);
+      p.b = (int) (conv[2] / 9.0);
       // set 3x3 neighborhood to the avg color, like a larger "bit"
       for (int m = -1; m <= 1; m++) {
         for (int n = -1; n <= 1; n++)
